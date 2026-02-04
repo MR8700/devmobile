@@ -1,17 +1,39 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const helmet = require('helmet');
+const morgan = require('morgan');
 
 const app = express();
 
-// ------------------ MIDDLEWARE ------------------
-app.use(express.json()); // pour lire le JSON envoyé par Expo
-app.use(cors());        // pour les requêtes Cross-Origin
+/* ================= CONFIG ================= */
 
-// Servir les fichiers statiques du dossier uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const PORT = process.env.PORT || 3000;
 
-// ------------------ ROUTES ------------------
+/* ================= CREATION DOSSIER UPLOAD ================= */
+
+const uploadsDir = path.join(__dirname, 'uploads');
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+  console.log("📂 Dossier uploads créé");
+}
+
+/* ================= MIDDLEWARE ================= */
+
+app.use(helmet()); // sécurité headers
+app.use(morgan('dev')); // logs requêtes
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+/* ================= FICHIERS STATIQUES ================= */
+
+app.use('/uploads', express.static(uploadsDir));
+
+/* ================= ROUTES ================= */
+
 const authRoutes = require('./routes/auth.routes');
 const etudiantsRoutes = require('./routes/etudiants.routes');
 const filieresRoutes = require('./routes/filieres.routes');
@@ -19,14 +41,33 @@ const filieresRoutes = require('./routes/filieres.routes');
 app.use('/auth', authRoutes);
 app.use('/etudiants', etudiantsRoutes);
 app.use('/filieres', filieresRoutes);
-// ------------------ ERREURS 404 ------------------
-app.use((req, res, next) => {
+
+/* ================= ROUTE TEST ================= */
+
+app.get('/', (req, res) => {
+  res.json({ message: "API Gestion Étudiants opérationnelle" });
+});
+
+/* ================= GESTION 404 ================= */
+
+app.use((req, res) => {
   res.status(404).json({ error: 'Route non trouvée' });
 });
 
-// ------------------ LANCEMENT SERVEUR ------------------
-const PORT = 3000;
+/* ================= GESTION ERREURS GLOBALES ================= */
+
+app.use((err, req, res, next) => {
+  console.error("Erreur serveur :", err);
+
+  res.status(err.status || 500).json({
+    error: err.message || "Erreur interne serveur"
+  });
+});
+
+/* ================= DEMARRAGE SERVEUR ================= */
+
 app.listen(PORT, () => {
-  console.log(`Serveur démarré sur http://localhost:${PORT}`);
-  console.log(`Pour l'émulateur Android utilisez : http://10.0.2.2:${PORT}`);
+  console.log(`🚀 Serveur démarré`);
+  console.log(`🌍 Local : http://localhost:${PORT}`);
+  console.log(`📱 Android Emulator : http://10.0.2.2:${PORT}`);
 });

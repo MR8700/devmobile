@@ -18,7 +18,6 @@ interface Props {
 }
 
 const StudentForm: React.FC<Props> = ({ filiere, onSuccess }) => {
-
   const [ine, setIne] = useState('');
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
@@ -30,48 +29,47 @@ const StudentForm: React.FC<Props> = ({ filiere, onSuccess }) => {
 
   const [localFiliere, setLocalFiliere] = useState(filiere ?? '');
 
-  // ================= VALIDATION =================
+  /* ================= VALIDATIONS ================= */
   const isIneValid = (v: string) => /^N\d{11}$/.test(v);
-  const isTextValid = (v: string) => v.trim().length > 0;
-  const isAgeValid = (v: string) => /^\d+$/.test(v) && parseInt(v) > 0;
+  const isNameValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,50}$/.test(v.trim());
+  const isAgeValid = (v: string) => /^\d+$/.test(v) && parseInt(v) >= 12 && parseInt(v) <= 99;
   const isPhoneValid = (v: string) => /^\d{8,15}$/.test(v);
+  const isFiliereValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ ]{2,50}$/.test(v.trim());
 
+  /* ================= SUBMIT ================= */
   const handleSubmit = async () => {
+    let errorMessage = '';
+    if (!isIneValid(ine)) errorMessage += '• L’INE doit commencer par N suivi de 11 chiffres.\n';
+    if (!isNameValid(nom)) errorMessage += '• Le nom doit contenir uniquement des lettres (2-50 caractères).\n';
+    if (!isNameValid(prenom)) errorMessage += '• Le prénom doit contenir uniquement des lettres (2-50 caractères).\n';
+    if (!isAgeValid(age)) errorMessage += '• L’âge doit être un nombre entre 12 et 99.\n';
+    if (!isPhoneValid(telephone)) errorMessage += '• Le numéro de téléphone doit contenir 8 à 15 chiffres.\n';
+    if (!isFiliereValid(localFiliere)) errorMessage += '• La filière doit contenir uniquement des lettres (2-50 caractères).\n';
+    if (!['M', 'F'].includes(sexe)) errorMessage += '• Veuillez sélectionner un sexe valide.\n';
 
-    if (
-      !isIneValid(ine) ||
-      !isTextValid(nom) ||
-      !isTextValid(prenom) ||
-      !isAgeValid(age) ||
-      !isTextValid(localFiliere) ||
-      !isPhoneValid(telephone)
-    ) {
-      Alert.alert('Erreur', 'Veuillez vérifier tous les champs');
-      return;
+    if (errorMessage) {
+      return Alert.alert('Champs invalides', errorMessage.trim());
     }
 
     setLoading(true);
 
     try {
-
       const newStudent: Etudiant = {
         ine,
-        nom,
-        prenom,
+        nom: nom.trim(),
+        prenom: prenom.trim(),
         age: parseInt(age),
         sexe,
-        filiere: localFiliere,
-        telephone,
+        filiere: localFiliere.trim(),
+        telephone: telephone.trim(),
         photo: photo ?? undefined,
       };
 
       await addEtudiant(newStudent);
-
-      Alert.alert('Succès', 'Étudiant ajouté');
-
+      Alert.alert('Succès', 'L’étudiant a été ajouté avec succès !');
       onSuccess?.();
 
-      // reset
+      // RESET
       setIne('');
       setNom('');
       setPrenom('');
@@ -81,23 +79,40 @@ const StudentForm: React.FC<Props> = ({ filiere, onSuccess }) => {
       setPhoto(null);
 
     } catch (err: any) {
-      Alert.alert('Erreur', err.message);
+      Alert.alert('Erreur', err.message || 'Impossible d’ajouter l’étudiant.');
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= UI ================= */
   return (
     <View>
-
       <ImagePickerComponent photo={photo} onImagePicked={setPhoto} />
 
-      <TextInput style={styles.input} placeholder="INE" value={ine} onChangeText={setIne} />
-      <TextInput style={styles.input} placeholder="Nom" value={nom} onChangeText={setNom} />
-      <TextInput style={styles.input} placeholder="Prénom" value={prenom} onChangeText={setPrenom} />
+      <TextInput
+        style={[styles.input, !isIneValid(ine) && ine ? styles.inputError : null]}
+        placeholder="INE (NXXXXXXXXXXX)"
+        value={ine}
+        onChangeText={setIne}
+      />
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, !isNameValid(nom) && nom ? styles.inputError : null]}
+        placeholder="Nom"
+        value={nom}
+        onChangeText={setNom}
+      />
+
+      <TextInput
+        style={[styles.input, !isNameValid(prenom) && prenom ? styles.inputError : null]}
+        placeholder="Prénom"
+        value={prenom}
+        onChangeText={setPrenom}
+      />
+
+      <TextInput
+        style={[styles.input, !isAgeValid(age) && age ? styles.inputError : null]}
         placeholder="Âge"
         keyboardType="number-pad"
         value={age}
@@ -105,7 +120,7 @@ const StudentForm: React.FC<Props> = ({ filiere, onSuccess }) => {
       />
 
       <TextInput
-        style={styles.input}
+        style={[styles.input, !isPhoneValid(telephone) && telephone ? styles.inputError : null]}
         placeholder="Téléphone"
         keyboardType="phone-pad"
         value={telephone}
@@ -131,36 +146,40 @@ const StudentForm: React.FC<Props> = ({ filiere, onSuccess }) => {
 
       {/* Filière */}
       <TextInput
-        style={[styles.input, filiere && { backgroundColor: '#eee' }]}
+        style={[
+          styles.input,
+          (!isFiliereValid(localFiliere) && localFiliere) ? styles.inputError : null,
+          filiere && { backgroundColor: '#eee' },
+        ]}
         placeholder="Filière"
         value={localFiliere}
         editable={!filiere}
         onChangeText={setLocalFiliere}
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        {loading ? <ActivityIndicator color="#fff" /> :
-          <Text style={styles.buttonText}>Ajouter</Text>}
+      <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Ajouter</Text>}
       </TouchableOpacity>
-
     </View>
   );
 };
 
 export default StudentForm;
 
+/* ================= STYLES ================= */
 const styles = StyleSheet.create({
   input: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 10,
+    padding: 12,
     marginVertical: 8,
     borderWidth: 1,
     borderColor: '#ccc',
   },
-
+  inputError: {
+    borderColor: '#ff4d4d',
+  },
   row: { flexDirection: 'row', marginVertical: 10 },
-
   sexBtn: {
     flex: 1,
     padding: 12,
@@ -169,12 +188,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     alignItems: 'center',
   },
-
   sexActive: {
     backgroundColor: '#1e90ff',
     borderColor: '#1e90ff',
   },
-
   button: {
     backgroundColor: '#1e90ff',
     padding: 14,
@@ -182,9 +199,5 @@ const styles = StyleSheet.create({
     marginTop: 15,
     alignItems: 'center',
   },
-
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
+  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });

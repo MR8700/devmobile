@@ -12,8 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ImagePickerComponent from '../components/photo/ImagePickerComponent';
-import { addUser } from '../api/api';
 import { User } from '../types/User';
+import { addUser } from '../api/userapi';
 
 const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [nom, setNom] = useState('');

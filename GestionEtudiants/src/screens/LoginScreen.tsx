@@ -12,7 +12,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { login } from '../api/api';
+import { login } from '../api/userapi';
 
 interface Props {
   navigation: any;

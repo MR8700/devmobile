@@ -30,29 +30,35 @@ const EditStudentScreen: React.FC<Props> = ({ route, navigation }) => {
   const [sexe, setSexe] = useState<'M' | 'F'>(student.sexe);
   const [filiere, setFiliere] = useState(student.filiere);
 
-  // ✅ Photo complète avec URL pour l’aperçu immédiat
   const [photo, setPhoto] = useState<string | null>(null);
-
   const [loading, setLoading] = useState(false);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
 
-  /* ================= EFFET POUR CHARGER LA PHOTO ================= */
-useEffect(() => {
-  if (student.photo) {
-    setPhoto(
-      student.photo.startsWith('http')
-        ? student.photo
-        : `http://10.0.2.2:3000${student.photo}`
-    );
-  }
-}, [student.photo]);
+  // Etats d'erreur pour affichage rouge
+  const [errors, setErrors] = useState({
+    nom: false,
+    prenom: false,
+    age: false,
+    telephone: false,
+    filiere: false,
+  });
 
+  /* ================= EFFET POUR CHARGER LA PHOTO ================= */
+  useEffect(() => {
+    if (student.photo) {
+      setPhoto(
+        student.photo.startsWith('http')
+          ? student.photo
+          : `http://10.0.2.2:3000${student.photo}`
+      );
+    }
+  }, [student.photo]);
 
   /* ================= VALIDATION ================= */
-  const isTextValid = (v: string) => v.trim().length > 0;
-  const isAgeValid = (v: string) =>
-    /^\d+$/.test(v) && Number(v) > 0 && Number(v) < 120;
+  const isNameValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,50}$/.test(v.trim());
+  const isAgeValid = (v: string) => /^\d+$/.test(v) && parseInt(v) >= 12 && parseInt(v) <= 99;
   const isPhoneValid = (v: string) => /^\d{8,15}$/.test(v);
+  const isFiliereValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ ]{2,50}$/.test(v.trim());
 
   /* ================= UPDATE ================= */
   const handleSubmit = async () => {
@@ -61,27 +67,38 @@ useEffect(() => {
       return;
     }
 
-    if (
-      !isTextValid(nom) ||
-      !isTextValid(prenom) ||
-      !isAgeValid(age) ||
-      !isTextValid(filiere) ||
-      !isPhoneValid(telephone)
-    ) {
-      Alert.alert('Erreur', 'Veuillez vérifier tous les champs.');
-      return;
+    const newErrors = {
+      nom: !isNameValid(nom),
+      prenom: !isNameValid(prenom),
+      age: !isAgeValid(age),
+      telephone: !isPhoneValid(telephone),
+      filiere: !isFiliereValid(filiere),
+    };
+    setErrors(newErrors);
+
+    if (Object.values(newErrors).some(Boolean)) {
+      const messages: string[] = [];
+      if (newErrors.nom) messages.push('Nom invalide (lettres uniquement, 2-50 caractères).');
+      if (newErrors.prenom) messages.push('Prénom invalide (lettres uniquement, 2-50 caractères).');
+      if (newErrors.age) messages.push('Âge invalide (12 à 99).');
+      if (newErrors.telephone) messages.push('Téléphone invalide (8 à 15 chiffres).');
+      if (newErrors.filiere) messages.push('Filière invalide (lettres uniquement, 2-50 caractères).');
+
+      return Alert.alert('Erreur de saisie', messages.join('\n'));
+    }
+
+    if (!['M', 'F'].includes(sexe)) {
+      return Alert.alert('Sexe invalide', 'Veuillez sélectionner un sexe valide.');
     }
 
     setLoading(true);
     try {
-      const parsedAge = Number(age);
-
       const updatedStudent: Etudiant = {
         id: student.id,
         ine: student.ine,
         nom: nom.trim(),
         prenom: prenom.trim(),
-        age: parsedAge,
+        age: parseInt(age),
         sexe,
         filiere: filiere.trim(),
         telephone: telephone.trim(),
@@ -133,16 +150,38 @@ useEffect(() => {
         <TextInput style={[styles.input, styles.inputDisabled]} value={student.ine} editable={false} />
 
         {/* NOM */}
-        <TextInput style={styles.input} placeholder="Nom" value={nom} onChangeText={setNom} />
+        <TextInput
+          style={[styles.input, errors.nom && styles.inputError]}
+          placeholder="Nom"
+          value={nom}
+          onChangeText={setNom}
+        />
 
         {/* PRENOM */}
-        <TextInput style={styles.input} placeholder="Prénom" value={prenom} onChangeText={setPrenom} />
+        <TextInput
+          style={[styles.input, errors.prenom && styles.inputError]}
+          placeholder="Prénom"
+          value={prenom}
+          onChangeText={setPrenom}
+        />
 
         {/* AGE */}
-        <TextInput style={styles.input} placeholder="Âge" keyboardType="number-pad" value={age} onChangeText={setAge} />
+        <TextInput
+          style={[styles.input, errors.age && styles.inputError]}
+          placeholder="Âge"
+          keyboardType="number-pad"
+          value={age}
+          onChangeText={setAge}
+        />
 
         {/* TELEPHONE */}
-        <TextInput style={styles.input} placeholder="Téléphone" keyboardType="phone-pad" value={telephone} onChangeText={setTelephone} />
+        <TextInput
+          style={[styles.input, errors.telephone && styles.inputError]}
+          placeholder="Téléphone"
+          keyboardType="phone-pad"
+          value={telephone}
+          onChangeText={setTelephone}
+        />
 
         {/* SEXE */}
         <View style={styles.sexeContainer}>
@@ -162,15 +201,20 @@ useEffect(() => {
         </View>
 
         {/* FILIERE */}
-        <TextInput style={styles.input} placeholder="Filière" value={filiere} onChangeText={setFiliere} />
+        <TextInput
+          style={[styles.input, errors.filiere && styles.inputError]}
+          placeholder="Filière"
+          value={filiere}
+          onChangeText={setFiliere}
+        />
 
-        {/* ================= PHOTO ================= */}
-        <TouchableOpacity
-          onPress={() => setPhotoModalVisible(true)}
-          style={styles.photoWrapper}
-        >
+        /* ================= PHOTO ================= */
+        <TouchableOpacity onPress={() => setPhotoModalVisible(true)} style={styles.photoWrapper}>
           {photo ? (
-            <Image source={{ uri: photo }} style={styles.photo} />
+            <Image
+              source={{ uri: photo.startsWith('http') ? photo : `http://10.0.2.2:3000${photo}` }}
+              style={styles.photo}
+            />
           ) : (
             <View style={styles.photoPlaceholder}>
               <Text>Aucune photo</Text>
@@ -181,27 +225,12 @@ useEffect(() => {
         <EditPhotoModal
           visible={photoModalVisible}
           studentId={student.id!}
-          currentPhoto={photo?.replace('http://10.0.2.2:3000', '')}
-          onClose={() => {
-            setPhotoModalVisible(false);
-
-            // ⚡ RAFFRAICHIR LA PHOTO AU CAS OÙ L'UTILISATEUR FERME LE MODAL SANS CONFIRMER
-            if (student.photo) {
-              setPhoto(
-                student.photo.startsWith('http')
-                  ? student.photo
-                  : `http://10.0.2.2:3000${student.photo}`
-              );
-            } else {
-              setPhoto(null);
-            }
-          }}
+          currentPhoto={photo ?? undefined} // chemin relatif ou URI
+          onClose={() => setPhotoModalVisible(false)}
           onConfirm={(newPhotoUri: string) => {
-            setPhoto(
-              newPhotoUri.startsWith('http')
-                ? newPhotoUri
-                : `http://10.0.2.2:3000${newPhotoUri}`
-            );
+            // ⚡ stocker uniquement le chemin relatif pour envoyer au backend
+            const relativeUri = newPhotoUri.replace('http://10.0.2.2:3000', '');
+            setPhoto(relativeUri);
             setPhotoModalVisible(false);
           }}
         />
@@ -252,6 +281,9 @@ const styles = StyleSheet.create({
   },
   inputDisabled: {
     backgroundColor: '#e5e5e5',
+  },
+  inputError: {
+    borderColor: 'red',
   },
   sexeContainer: {
     flexDirection: 'row',

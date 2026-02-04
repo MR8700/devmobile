@@ -6,8 +6,8 @@ import ProfileInfoCard from '../components/profile/ProfileInfoCard';
 import EmailCard from '../components/profile/email/mailCard';
 import PasswordCard from '../components/profile/password/PasswordCard';
 
-import { getCurrentUser } from '../api/api';
 import { User } from '../types/User';
+import { getCurrentUser } from '../api/userapi';
 
 const ProfileScreen = () => {
 

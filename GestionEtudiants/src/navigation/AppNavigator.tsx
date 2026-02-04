@@ -9,6 +9,7 @@ import FilieresScreen from '../screens/FilieresScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SecurityScreen from '../screens/SecurityScreen';
 import AboutScreen from '../screens/AboutScreen';
+import SpecialEditStudentScreen from '../screens/SpecialEditStudentScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const SimpleStack = createNativeStackNavigator();
@@ -39,6 +40,15 @@ export default function AppNavigator() {
         }}
       />
 
+      <SimpleStack.Screen
+        name="SpecialEditStudent"
+        component={SpecialEditStudentScreen}
+        options={{
+          presentation: 'modal',
+          title: 'Modifier étudiant',
+        }}
+      />
+
       <Stack.Screen
         name="AddStudent"
         component={AddStudentScreen}
@@ -48,12 +58,12 @@ export default function AppNavigator() {
       />
 
         <Stack.Screen
-  name="Filieres"
-  component={FilieresScreen}
-  options={{
-    title: 'Les filières',
-  }}
-/>
+        name="Filieres"
+        component={FilieresScreen}
+        options={{
+          title: 'Les filières',
+        }}
+      />
 
 
       <SimpleStack.Screen

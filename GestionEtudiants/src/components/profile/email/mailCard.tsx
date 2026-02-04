@@ -9,8 +9,8 @@ import {
   ActivityIndicator
 } from 'react-native';
 
-import { updateUserEmail } from '../../../api/api';
 import { User } from '../../../types/User';
+import { updateUserEmail } from '../../../api/userapi';
 
 interface EmailCardProps {
   user: User;

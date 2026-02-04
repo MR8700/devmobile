@@ -4,9 +4,21 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// ------------------ Multer ------------------
+/* ======================================================
+   GARANTIR DOSSIER UPLOADS
+====================================================== */
+
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads');
+}
+
+/* ======================================================
+   MULTER CONFIG
+====================================================== */
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
+
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `photo_${req.params.id}_${Date.now()}${ext}`);
@@ -15,55 +27,143 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
+
   fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith("image/")) {
-      return cb(new Error("Fichier non image"));
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Fichier non image'));
     }
     cb(null, true);
   },
 });
 
-// ------------------ LISTE DES ÉTUDIANTS ------------------
+/* ======================================================
+   LISTE ETUDIANTS
+====================================================== */
+
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT * FROM etudiant ORDER BY id DESC");
-    
-    // Transformer le chemin de la photo en URL complète
+
+    const [rows] = await db.query(
+      "SELECT * FROM etudiant ORDER BY id DESC"
+    );
+
     const host = req.protocol + '://' + req.get('host');
+
     const data = rows.map(r => ({
       ...r,
       photo: r.photo ? host + r.photo : null
     }));
 
     res.json(data);
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ------------------ AJOUTER UN ÉTUDIANT ------------------
+/* ======================================================
+   AJOUT ETUDIANT
+====================================================== */
+
 router.post('/', async (req, res) => {
   try {
-    const { ine, nom, prenom, age, telephone, sexe, filiere, photo } = req.body;
-    if (!ine || !nom || !prenom) return res.status(400).json({ error: "Champs manquants" });
+
+    const {
+      ine,
+      nom,
+      prenom,
+      age,
+      telephone,
+      sexe,
+      filiere
+    } = req.body;
+
+    if (!ine || !nom || !prenom) {
+      return res.status(400).json({ error: "Champs manquants" });
+    }
 
     const [result] = await db.query(
-      "INSERT INTO etudiant (ine, nom, prenom, age, telephone, sexe, filiere, photo) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [ine, nom, prenom, age, telephone, sexe, filiere, photo || null]
+      `INSERT INTO etudiant 
+      (ine, nom, prenom, age, telephone, sexe, filiere, photo)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
+      [ine, nom, prenom, age, telephone, sexe, filiere]
     );
 
-    res.status(201).json({ id: result.insertId, ...req.body });
+    res.status(201).json({
+      id: result.insertId,
+      ine,
+      nom,
+      prenom,
+      age,
+      telephone,
+      sexe,
+      filiere,
+      photo: null
+    });
+
   } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: "INE déjà utilisé" });
+
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: "INE déjà utilisé" });
+    }
+
     res.status(500).json({ error: err.message });
   }
 });
 
-// ------------------ MISE À JOUR D'UN ÉTUDIANT ------------------
+/* ======================================================
+   DETAIL ETUDIANT
+====================================================== */
+
+router.get('/:id', async (req, res) => {
+  try {
+
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
+
+    const [rows] = await db.query(
+      "SELECT * FROM etudiant WHERE id=?",
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Étudiant non trouvé" });
+    }
+
+    const host = req.protocol + '://' + req.get('host');
+
+    const student = {
+      ...rows[0],
+      photo: rows[0].photo ? host + rows[0].photo : null
+    };
+
+    res.json(student);
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ======================================================
+   UPDATE ETUDIANT
+====================================================== */
+
 router.put('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { ine, nom, prenom, age, telephone, sexe, filiere, photo } = req.body;
+
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
+
+    const {
+      ine,
+      nom,
+      prenom,
+      age,
+      telephone,
+      sexe,
+      filiere,
+      photo
+    } = req.body;
 
     const [result] = await db.query(
       `UPDATE etudiant
@@ -73,52 +173,91 @@ router.put('/:id', async (req, res) => {
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Étudiant introuvable" });
+      return res.status(404).json({ error: "Étudiant introuvable" });
     }
 
     res.json({ message: "Étudiant mis à jour" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
 
-// ------------------ SUPPRIMER UN ÉTUDIANT ------------------
-router.delete('/:id', async (req, res) => {
-  try {
-    const [result] = await db.query("DELETE FROM etudiant WHERE id = ?", [req.params.id]);
-    if (result.affectedRows === 0) return res.status(404).json({ error: "Étudiant non trouvé" });
-    res.json({ message: "Supprimé avec succès" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ------------------ UPLOAD PHOTO ------------------
-router.put('/:id/photo', upload.single('photo'), async (req, res) => {
+/* ======================================================
+   DELETE ETUDIANT
+====================================================== */
+
+router.delete('/:id', async (req, res) => {
   try {
-    const id = req.params.id;
 
-    if (!req.file) return res.status(400).json({ error: "Photo manquante" });
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
 
-    const host = req.protocol + '://' + req.get('host');
-    const photoPath = `/uploads/${req.file.filename}`;
+    const [result] = await db.query(
+      "DELETE FROM etudiant WHERE id=?",
+      [id]
+    );
 
-    // Supprimer ancienne photo si existante
-    const [old] = await db.query("SELECT photo FROM etudiant WHERE id=?", [id]);
-    if (old[0]?.photo) {
-      const oldPath = '.' + old[0].photo;
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Étudiant non trouvé" });
     }
 
-    // Mise à jour en BD
-    const [result] = await db.query(
+    res.json({ message: "Supprimé avec succès" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ======================================================
+   UPLOAD PHOTO
+====================================================== */
+
+router.put('/:id/photo', upload.single('photo'), async (req, res) => {
+  try {
+
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "ID invalide" });
+
+    if (!req.file) {
+      return res.status(400).json({ error: "Photo manquante" });
+    }
+
+    // Vérifier étudiant existe
+    const [rows] = await db.query(
+      "SELECT photo FROM etudiant WHERE id=?",
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Étudiant introuvable" });
+    }
+
+    // Supprimer ancienne photo
+    if (rows[0].photo) {
+
+      const oldPath = path.join(
+        process.cwd(),
+        rows[0].photo
+      );
+
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    }
+
+    const photoPath = `/uploads/${req.file.filename}`;
+    const host = req.protocol + '://' + req.get('host');
+
+    await db.query(
       "UPDATE etudiant SET photo=? WHERE id=?",
       [photoPath, id]
     );
 
-    if (result.affectedRows === 0) return res.status(404).json({ error: "Étudiant introuvable" });
-
-    res.json({ id, photo: host + photoPath });
+    res.json({
+      id,
+      photo: host + photoPath
+    });
 
   } catch (err) {
     console.error(err);

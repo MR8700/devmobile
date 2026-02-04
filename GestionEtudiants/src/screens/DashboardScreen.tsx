@@ -164,6 +164,13 @@ const DashboardScreen = ({ navigation }: any) => {
           
           onPress={() => navigation.navigate('Filieres')}
         />
+
+        <DashboardButton
+          icon="school-outline"
+          label="Modifications particulières"
+          
+          onPress={() => navigation.navigate('SpecialEditStudent')}
+        />
         
       </View>
 

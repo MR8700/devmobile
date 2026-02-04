@@ -53,10 +53,31 @@ const FiliereScreen: React.FC = () => {
   useEffect(() => { fetchFilieres(); }, []);
   useEffect(() => { fetchStudents(); }, [selectedFiliere]);
 
+  // Regex : lettres + accents + espaces, 2 à 50 caractères
+  const isFiliereValid = (f: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ ]{2,50}$/.test(f.trim());
+
   const handleAddFiliere = () => {
     const f = newFiliere.trim();
-    if (!f) return;
-    if (!filieres.includes(f)) setFilieres(prev => [...prev, f]);
+
+    if (!f) {
+      Alert.alert('Erreur', 'Veuillez saisir le nom de la filière.');
+      return;
+    }
+
+    if (!isFiliereValid(f)) {
+      Alert.alert(
+        'Filière invalide',
+        'Le nom de la filière doit contenir uniquement des lettres et espaces (2 à 50 caractères).'
+      );
+      return;
+    }
+
+    if (filieres.includes(f)) {
+      Alert.alert('Attention', 'Cette filière existe déjà.');
+      return;
+    }
+
+    setFilieres(prev => [...prev, f]);
     setNewFiliere('');
     setSelectedFiliere(f);
   };
@@ -118,7 +139,10 @@ const FiliereScreen: React.FC = () => {
       {/* AJOUT FILIERE */}
       <View style={styles.addFiliereContainer}>
         <TextInput
-          style={styles.inputFiliere}
+          style={[
+            styles.inputFiliere,
+            newFiliere && !isFiliereValid(newFiliere) ? { borderColor: '#ff4d4d' } : null
+          ]}
           placeholder="Nouvelle filière"
           value={newFiliere}
           onChangeText={setNewFiliere}
@@ -189,6 +213,7 @@ const FiliereScreen: React.FC = () => {
     </View>
   );
 };
+
 
 export default FiliereScreen;
 

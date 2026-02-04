@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-import { getCurrentUser, updateUserInfo } from '../../api/api';
 import { User } from '../../types/User';
+import { getCurrentUser, updateUserInfo } from '../../api/userapi';
 
 interface Props {
   user: User;

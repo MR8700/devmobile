@@ -162,7 +162,7 @@ const DashboardScreen = ({ navigation }: any) => {
           icon="school-outline"
           label="Filières"
           
-          onPress={() => navigation.navigate('App', { screen: 'Filieres' })}
+          onPress={() => navigation.navigate('Filieres')}
         />
         
       </View>

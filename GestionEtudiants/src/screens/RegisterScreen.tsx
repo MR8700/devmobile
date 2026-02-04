@@ -1,75 +1,201 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View, ActivityIndicator, Alert } from 'react-native';
-
-import AvatarSection from '../components/profile/AvatarSection';
-import ProfileInfoCard from '../components/profile/ProfileInfoCard';
-import EmailCard from '../components/profile/email/mailCard';
-import PasswordCard from '../components/profile/password/PasswordCard';
-
-import { getCurrentUser } from '../api/api';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import ImagePickerComponent from '../components/photo/ImagePickerComponent';
+import { addUser } from '../api/api';
 import { User } from '../types/User';
 
-const ProfileScreen = () => {
+const RegisterScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const [nom, setNom] = useState('');
+  const [prenom, setPrenom] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const isEmailValid = (email: string) => /\S+@\S+\.\S+/.test(email);
 
-  useEffect(() => {
+  const handleRegister = async () => {
+    if (!nom || !prenom || !email || !password || !passwordConfirm) {
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs.');
+      return;
+    }
 
-    const fetchProfile = async () => {
-      try {
+    if (!isEmailValid(email)) {
+      Alert.alert('Erreur', 'Email invalide.');
+      return;
+    }
 
-        const data = await getCurrentUser();
-        setUser(data);
+    if (password.length < 6) {
+      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 6 caractères.');
+      return;
+    }
 
-      } catch (error: any) {
+    if (password !== passwordConfirm) {
+      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas.');
+      return;
+    }
 
-        Alert.alert(
-          'Erreur',
-          error.message || 'Impossible de charger le profil'
-        );
+    setLoading(true);
 
-      } finally {
-        setLoading(false);
-      }
-    };
+    try {
+      const newUser: User = {
+        nom,
+        prenom,
+        email,
+        password,
+        role: 'admin',
+        photo: photo || undefined,
+      };
 
-    fetchProfile();
+      await addUser(newUser);
 
-  }, []);
-
-  if (loading) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#2563eb" />
-      </View>
-    );
-  }
-
-  if (!user) return null;
+      Alert.alert('Succès', 'Compte créé !');
+      navigation.navigate('Login');
+    } catch (err: any) {
+      Alert.alert('Erreur', err.message || 'Impossible de créer le compte');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <AvatarSection user={user} />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Inscription</Text>
 
-      <ProfileInfoCard
-        user={user}
-        onUpdate={(u) => setUser(u)}
-      />
+        <ImagePickerComponent photo={photo} onImagePicked={setPhoto} />
 
-      <EmailCard
-        user={user}
-        onUpdate={(u) => setUser(u)}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Nom"
+          value={nom}
+          onChangeText={setNom}
+        />
 
-      <PasswordCard userId={user.id} />
-    </ScrollView>
+        <TextInput
+          style={styles.input}
+          placeholder="Prénom"
+          value={prenom}
+          onChangeText={setPrenom}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={setEmail}
+        />
+
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={{ flex: 1, paddingVertical: 12 }}
+            placeholder="Mot de passe"
+            secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={setPassword}
+          />
+
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            <Ionicons
+              name={showPassword ? 'eye' : 'eye-off'}
+              size={24}
+              color="#555"
+            />
+          </TouchableOpacity>
+        </View>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Confirmer le mot de passe"
+          secureTextEntry
+          value={passwordConfirm}
+          onChangeText={setPasswordConfirm}
+        />
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#4a90e2' }]}
+          onPress={handleRegister}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Chargement...' : "S'inscrire"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+          <Text style={styles.toggleText}>
+            Déjà un compte ? Se connecter
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
-export default ProfileScreen;
+export default RegisterScreen;
 
 const styles = StyleSheet.create({
-  container: { padding: 20, backgroundColor: '#f2f5f9' },
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginVertical: 8,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    marginVertical: 8,
+  },
+  button: {
+    paddingVertical: 15,
+    borderRadius: 10,
+    marginVertical: 20,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    fontSize: 16,
+  },
+  toggleText: {
+    color: '#4a90e2',
+    textAlign: 'center',
+    fontSize: 14,
+  },
 });

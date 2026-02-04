@@ -200,3 +200,16 @@ export const updateEtudiantPhoto = async (
 
   return response.data;
 };
+
+
+/* ================= FILIERES ================= */
+
+export const getFilieres = async (): Promise<string[]> => {
+  try {
+    const response = await apiClient.get<string[]>('/filieres');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error?.response?.data?.message || 'Impossible de récupérer les filières');
+  }
+};
+

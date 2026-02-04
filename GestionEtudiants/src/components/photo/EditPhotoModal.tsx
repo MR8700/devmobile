@@ -47,7 +47,7 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
       }
       setLoading(false);
     }
-  }, [visible=true, currentPhoto]);
+  }, [visible, currentPhoto]);
 
   const pickImage = async (fromCamera: boolean) => {
     if (loading) return;

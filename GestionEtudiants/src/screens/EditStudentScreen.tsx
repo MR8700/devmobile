@@ -12,14 +12,12 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/types';
 import EditPhotoModal from '../components/photo/EditPhotoModal';
 import { deleteEtudiant, updateEtudiant, Etudiant } from '../api/api';
 
-interface Props {
-  route: { params: { student: Etudiant } };
-  navigation: any;
-}
+type Props = NativeStackScreenProps<RootStackParamList, 'EditStudent'>;
 
 const EditStudentScreen: React.FC<Props> = ({ route, navigation }) => {
   const { student } = route.params;

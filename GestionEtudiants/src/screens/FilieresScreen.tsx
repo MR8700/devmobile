@@ -2,111 +2,289 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
-  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Modal,
   Alert,
+  ScrollView,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Etudiant, getEtudiants } from '../api/api';
+import StudentForm from '../components/forms/StudentForm';
+import { getFilieres } from '../api/api';
+import StudentDetailScreen from './StudentDetailScreen';
 
-/* =======================
-   TYPE
-======================= */
-type Filiere = {
-  id: number;
-  nom: string;
-  code: string;
-};
+const FiliereScreen: React.FC = () => {
+  const [filieres, setFilieres] = useState<string[]>([]);
+  const [selectedFiliere, setSelectedFiliere] = useState<string | null>(null);
+  const [students, setStudents] = useState<Etudiant[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [newFiliere, setNewFiliere] = useState('');
+  const [search, setSearch] = useState('');
 
-const FilieresScreen = () => {
-  const [filieres, setFilieres] = useState<Filiere[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Etudiant | null>(null);
 
-  /* =======================
-     LOAD (MOCK / API)
-  ======================= */
-  useEffect(() => {
-    // 🔁 Remplacer par API plus tard
-    setTimeout(() => {
-      setFilieres([
-        { id: 1, nom: 'Informatique', code: 'INFO' },
-        { id: 2, nom: 'Mathématiques', code: 'MATH' },
-        { id: 3, nom: 'Physique', code: 'PHY' },
-      ]);
-      setLoading(false);
-    }, 800);
-  }, []);
+  // Charger les filières
+  const fetchFilieres = async () => {
+    try {
+      const data = await getFilieres();
+      setFilieres(data);
+      if (!selectedFiliere && data.length > 0) setSelectedFiliere(data[0]);
+    } catch {
+      Alert.alert('Erreur', 'Impossible de charger les filières');
+    }
+  };
 
-  /* =======================
-     RENDER ITEM
-  ======================= */
-  const renderItem = ({ item }: { item: Filiere }) => (
-    <View style={styles.card}>
-      <Ionicons name="school-outline" size={24} color="#4a90e2" />
-      <View style={styles.textContainer}>
-        <Text style={styles.name}>{item.nom}</Text>
-        <Text style={styles.code}>{item.code}</Text>
+  // Charger les étudiants pour la filière sélectionnée
+  const fetchStudents = async () => {
+    if (!selectedFiliere) return;
+    try {
+      const data = await getEtudiants();
+      setStudents(data.filter(s => s.filiere === selectedFiliere));
+    } catch {
+      Alert.alert('Erreur', 'Impossible de charger les étudiants');
+    }
+  };
+
+  useEffect(() => { fetchFilieres(); }, []);
+  useEffect(() => { fetchStudents(); }, [selectedFiliere]);
+
+  const handleAddFiliere = () => {
+    const f = newFiliere.trim();
+    if (!f) return;
+    if (!filieres.includes(f)) setFilieres(prev => [...prev, f]);
+    setNewFiliere('');
+    setSelectedFiliere(f);
+  };
+
+  const renderStudentItem = ({ item }: { item: Etudiant }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => {
+        setSelectedStudent(item);
+        setDetailVisible(true);
+      }}
+    >
+      <Image
+        source={
+          item.photo ? { uri: item.photo } : require('../../assets/images/placeholder.png')
+        }
+        style={styles.photo}
+      />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.name}>{item.nom} {item.prenom}</Text>
+        <Text style={styles.meta}>{item.sexe === 'M' ? 'Garçon' : 'Fille'} • {item.age} ans</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#4a90e2" />
-        <Text style={styles.loaderText}>Chargement des filières…</Text>
-      </View>
-    );
-  }
+  const filteredFilieres = filieres.filter(f => f.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <FlatList
-      data={filieres}
-      keyExtractor={(item) => item.id.toString()}
-      renderItem={renderItem}
-      contentContainerStyle={styles.container}
-    />
+    <View style={styles.container}>
+      <Text style={styles.title}>Filières</Text>
+
+      {/* BARRE DE RECHERCHE */}
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Rechercher une filière..."
+        value={search}
+        onChangeText={setSearch}
+      />
+
+      {/* FILIERES HORIZONTALES */}
+      {filteredFilieres.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filieresScroll}>
+          {filteredFilieres.map(f => (
+            <TouchableOpacity
+              key={f}
+              style={[styles.filiereButton, selectedFiliere === f && styles.filiereSelected]}
+              onPress={() => setSelectedFiliere(f)}
+            >
+              <Text style={selectedFiliere === f ? styles.filiereTextSelected : styles.filiereText}>
+                {f}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      ) : (
+        <Text style={styles.emptyMessage}>Aucune filière trouvée</Text>
+      )}
+
+      {/* AJOUT FILIERE */}
+      <View style={styles.addFiliereContainer}>
+        <TextInput
+          style={styles.inputFiliere}
+          placeholder="Nouvelle filière"
+          value={newFiliere}
+          onChangeText={setNewFiliere}
+        />
+        <TouchableOpacity style={styles.addBtnSmall} onPress={handleAddFiliere}>
+          <Ionicons name="add" size={22} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* LISTE DES ETUDIANTS */}
+      {selectedFiliere ? (
+        <>
+          <Text style={styles.subTitle}>Étudiants : {selectedFiliere}</Text>
+
+          {students.length > 0 ? (
+            <FlatList
+              data={students}
+              keyExtractor={(item, i) => item.id?.toString() ?? i.toString()}
+              renderItem={renderStudentItem}
+            />
+          ) : (
+            <Text style={styles.emptyMessage}>Aucun étudiant dans cette filière</Text>
+          )}
+
+          {/* BOUTON AJOUT ETUDIANT */}
+          <TouchableOpacity style={styles.addBtn} onPress={() => setModalVisible(true)}>
+            <Ionicons name="add" size={28} color="#fff" />
+          </TouchableOpacity>
+
+          {/* MODAL AJOUT ETUDIANT */}
+          <Modal visible={modalVisible} transparent animationType="slide">
+            <View style={styles.overlay}>
+              <ScrollView style={styles.modalContainer}>
+                <Text style={styles.modalTitle}>Ajouter étudiant ({selectedFiliere})</Text>
+
+                <StudentForm
+                  filiere={selectedFiliere}
+                  onSuccess={() => {
+                    setModalVisible(false);
+                    fetchStudents();
+                  }}
+                />
+
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.cancelText}>Annuler</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </Modal>
+        </>
+      ) : (
+        <Text style={styles.emptyMessage}>Sélectionnez une filière pour voir les étudiants</Text>
+      )}
+
+      {/* MODAL DETAIL ETUDIANT */}
+      {selectedStudent && (
+        <StudentDetailScreen
+          visible={detailVisible}
+          student={selectedStudent}
+          onClose={() => setDetailVisible(false)}
+          onEdit={() => Alert.alert('Modifier', `Modifier ${selectedStudent.nom}`)}
+          onDelete={() => Alert.alert('Supprimer', `Supprimer ${selectedStudent.nom}`)}
+        />
+      )}
+    </View>
   );
 };
 
-export default FilieresScreen;
+export default FiliereScreen;
 
-/* =======================
-   STYLES
-======================= */
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    backgroundColor: '#f7f9fc',
+  container: { flex: 1, padding: 12, backgroundColor: '#f4f6fc' },
+  title: { fontSize: 24, fontWeight: '700', color: '#1e90ff', marginBottom: 10 },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    height: 40,
+    backgroundColor: '#fff',
+    marginBottom: 10,
   },
-  loader: {
+  filieresScroll: { marginBottom: 10 },
+  filiereButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#aaa',
+    marginHorizontal: 5,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  filiereSelected: { backgroundColor: '#1e90ff', borderColor: '#1e90ff' },
+  filiereText: { color: '#111', fontWeight: '600' },
+  filiereTextSelected: { color: '#fff', fontWeight: '600' },
+  addFiliereContainer: { flexDirection: 'row', alignItems: 'center', marginVertical: 10 },
+  inputFiliere: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    height: 40,
+    backgroundColor: '#fff',
     flex: 1,
+    marginRight: 5,
+  },
+  addBtnSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#07a114',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loaderText: {
-    marginTop: 10,
-    color: '#555',
+  addBtn: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    backgroundColor: '#1e90ff',
+    width: 55,
+    height: 55,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 4,
+    elevation: 4,
   },
   card: {
     flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#fff',
-    padding: 18,
-    borderRadius: 14,
-    marginBottom: 14,
-    elevation: 2,
+    padding: 12,
+    marginVertical: 6,
+    borderRadius: 15,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 1,
   },
-  textContainer: {
-    marginLeft: 15,
+  photo: { width: 60, height: 60, borderRadius: 30, marginRight: 12 },
+  name: { fontSize: 16, fontWeight: '600' },
+  meta: { color: '#666', fontSize: 13 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', padding: 20 },
+  modalContainer: { backgroundColor: '#fff', borderRadius: 15, padding: 20 },
+  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 15 },
+  cancelBtn: {
+    marginTop: 15,
+    paddingVertical: 10,
+    backgroundColor: '#f44336',
+    borderRadius: 15,
+    alignItems: 'center',
   },
-  name: {
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  code: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 2,
-  },
+  cancelText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  emptyMessage: { textAlign: 'center', marginVertical: 20, color: '#666', fontStyle: 'italic' },
+  subTitle: { fontSize: 18, fontWeight: '600', marginVertical: 10 },
 });

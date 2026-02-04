@@ -84,7 +84,8 @@ const AddStudentScreen: React.FC = () => {
     >
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Ajouter un étudiant</Text>
-
+          {/* Composant Photo */}
+        <ImagePickerComponent photo={photo} onImagePicked={setPhoto} />
         <TextInput
           style={styles.input}
           placeholder="INE (N suivi de 11 chiffres)"
@@ -141,9 +142,7 @@ const AddStudentScreen: React.FC = () => {
           onChangeText={setFiliere}
         />
 
-        {/* Composant Photo */}
-        <ImagePickerComponent photo={photo} onImagePicked={setPhoto} />
-
+        
         <TouchableOpacity
           style={[styles.button, { backgroundColor: '#1e90ff' }]}
           onPress={handleSubmit}

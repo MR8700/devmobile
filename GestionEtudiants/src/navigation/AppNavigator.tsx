@@ -47,13 +47,14 @@ export default function AppNavigator() {
         }}
       />
 
-        <SimpleStack.Screen
-        name="Filieres"
-        component={FilieresScreen}
-        options={{
-          title: 'Les filières',
-        }}
-      />
+        <Stack.Screen
+  name="Filieres"
+  component={FilieresScreen}
+  options={{
+    title: 'Les filières',
+  }}
+/>
+
 
       <SimpleStack.Screen
         name="Profile"

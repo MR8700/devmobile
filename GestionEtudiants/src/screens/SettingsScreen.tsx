@@ -1,75 +1,46 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import {
-  View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Switch,
+  ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
+import { ThemeContext } from '../context/ThemeContext';
+import { SettingSwitch } from '../components/settings/SettingSwitch';
+import { SettingItem } from '../components/settings/SettingItem';
 
+/* ======================
+   COMPOSANT PRINCIPAL
+====================== */
 const SettingsScreen = () => {
   const navigation = useNavigation<any>();
-
-  const [darkMode, setDarkMode] = useState(false);
-  const [notifications, setNotifications] = useState(true);
+  const { darkMode, toggleDarkMode } = useContext(ThemeContext);
 
   /* ======================
-     Charger préférences
+     COULEURS DYNAMIQUES
   ====================== */
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    const dark = await AsyncStorage.getItem('darkMode');
-    const notif = await AsyncStorage.getItem('notifications');
-
-    if (dark !== null) setDarkMode(JSON.parse(dark));
-    if (notif !== null) setNotifications(JSON.parse(notif));
-  };
-
-  /* ======================
-     Sauvegarder préférences
-  ====================== */
-  const toggleDarkMode = async () => {
-    const newValue = !darkMode;
-    setDarkMode(newValue);
-    await AsyncStorage.setItem('darkMode', JSON.stringify(newValue));
-  };
-
-  const toggleNotifications = async () => {
-    const newValue = !notifications;
-    setNotifications(newValue);
-    await AsyncStorage.setItem('notifications', JSON.stringify(newValue));
+  const colors = {
+    background: darkMode ? '#1f2937' : '#f7f9fc',
+    card: darkMode ? '#374151' : '#fff',
+    textPrimary: darkMode ? '#f3f4f6' : '#111827',
+    textMuted: darkMode ? '#9ca3af' : '#374151',
+    accent: '#4a90e2',
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Paramètres</Text>
+    <ScrollView
+      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}
+    >
+      <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+        Paramètres
+      </Text>
 
       {/* PROFIL */}
       <SettingItem
         icon="person-outline"
         label="Profil"
         onPress={() => navigation.navigate('Profile')}
-      />
-
-      {/* SECURITE */}
-      <SettingItem
-        icon="lock-closed-outline"
-        label="Sécurité"
-        onPress={() => navigation.navigate('Security')}
-      />
-
-      {/* NOTIFICATIONS */}
-      <SettingSwitch
-        icon="notifications-outline"
-        label="Notifications"
-        value={notifications}
-        onValueChange={toggleNotifications}
+        colors={colors}
       />
 
       {/* MODE SOMBRE */}
@@ -78,70 +49,23 @@ const SettingsScreen = () => {
         label="Mode sombre"
         value={darkMode}
         onValueChange={toggleDarkMode}
+        colors={colors}
       />
-
-      <View style={styles.separator} />
-
-      {/* A PROPOS */}
-      <SettingItem
-        icon="information-circle-outline"
-        label="À propos"
-        onPress={() => navigation.navigate('About')}
-      />
-    </View>
+    </ScrollView>
   );
 };
 
 export default SettingsScreen;
 
-/* ======================
-   ITEM SIMPLE
-====================== */
-const SettingItem = ({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: any;
-  label: string;
-  onPress: () => void;
-}) => (
-  <TouchableOpacity style={styles.item} onPress={onPress}>
-    <Ionicons name={icon} size={22} color="#4a90e2" />
-    <Text style={styles.itemText}>{label}</Text>
-    <Ionicons name="chevron-forward-outline" size={20} color="#9ca3af" />
-  </TouchableOpacity>
-);
 
-/* ======================
-   ITEM AVEC SWITCH
-====================== */
-const SettingSwitch = ({
-  icon,
-  label,
-  value,
-  onValueChange,
-}: {
-  icon: any;
-  label: string;
-  value: boolean;
-  onValueChange: () => void;
-}) => (
-  <View style={styles.item}>
-    <Ionicons name={icon} size={22} color="#4a90e2" />
-    <Text style={styles.itemText}>{label}</Text>
-    <Switch value={value} onValueChange={onValueChange} />
-  </View>
-);
+
 
 /* ======================
    STYLES
 ====================== */
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   container: {
-    flex: 1,
     padding: 20,
-    backgroundColor: '#f7f9fc',
   },
   sectionTitle: {
     fontSize: 22,
@@ -151,7 +75,6 @@ const styles = StyleSheet.create({
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 14,
     marginBottom: 12,
@@ -162,10 +85,5 @@ const styles = StyleSheet.create({
     marginLeft: 14,
     fontSize: 16,
     fontWeight: '500',
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-    marginVertical: 25,
   },
 });

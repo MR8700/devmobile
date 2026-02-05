@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,20 +14,25 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { Etudiant, getEtudiants, updateEtudiant } from '../api/api';
+import LottieView from 'lottie-react-native';
+import { Etudiant, getEtudiants, updateEtudiant, updateEtudiantPhoto } from '../api/api';
 import EditPhotoModal from '../components/photo/EditPhotoModal';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types/types';
+import { isAgeValid, isFiliereValid, isIneValid, isNameValid, isPhoneValid } from '../components/forms/FieldValidation';
+import { useFocusEffect } from '@react-navigation/native';
+type Props = NativeStackScreenProps<RootStackParamList, 'SpecialEditStudent'>;
+const CompactEditStudentScreen: React.FC<Props> = ({ navigation }) => {
 
-const CompactEditStudentScreen: React.FC = () => {
   const [students, setStudents] = useState<Etudiant[]>([]);
   const [search, setSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Etudiant | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [confirmModal, setConfirmModal] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
-
+  const [loading, setLoading] = useState(false);
   const [updatedData, setUpdatedData] = useState<Partial<Etudiant>>({});
   const [errors, setErrors] = useState({
+    ine: false,
     nom: false,
     prenom: false,
     age: false,
@@ -35,7 +40,31 @@ const CompactEditStudentScreen: React.FC = () => {
     filiere: false,
   });
 
-  /* ================= CHARGER LES ETUDIANTS ================= */
+  // FETCH STUDENTS + STATS
+      const loadStudents = useCallback(async () => {
+        setLoading(true);
+        try {
+          const data = await getEtudiants();
+          setStudents(data.map(s => ({ ...s, id: s.id! })));
+  
+        } catch (err) {
+          console.error('Erreur dashboard :', err);
+          Alert.alert('Erreur', 'Impossible de charger les étudiants');
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+    
+  
+    useFocusEffect(
+        useCallback(() => {
+          loadStudents();
+        }, [loadStudents])
+      );
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
   const fetchStudents = async () => {
     try {
       const data = await getEtudiants();
@@ -45,28 +74,27 @@ const CompactEditStudentScreen: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchStudents(); }, []);
-
   const filteredStudents = students.filter(s =>
     s.nom.toLowerCase().includes(search.toLowerCase()) ||
     s.prenom.toLowerCase().includes(search.toLowerCase()) ||
     s.ine.toLowerCase().includes(search.toLowerCase())
   );
 
-  /* ================= VALIDATIONS ================= */
-  const isNameValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,50}$/.test(v.trim());
-  const isAgeValid = (v: string) => /^\d+$/.test(v) && parseInt(v) >= 12 && parseInt(v) <= 99;
-  const isPhoneValid = (v: string) => /^\d{8,15}$/.test(v);
-  const isFiliereValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ ]{2,50}$/.test(v.trim());
 
   /* ================= SAUVEGARDE ================= */
   const handleSave = async () => {
     if (!selectedStudent) return;
 
+    // Vérifier si l'INE a changé et existe déjà
     if (updatedData.ine && updatedData.ine !== selectedStudent.ine) {
-      setConfirmModal(true);
-      return;
+      const ineExists = students.some(s => s.ine === updatedData.ine);
+      if (ineExists) {
+        Alert.alert('INE existant', 'Cet INE est déjà utilisé par un autre étudiant.');
+        setErrors(prev => ({ ...prev, ine: true }));
+        return;
+      }
     }
+
     await saveChanges();
   };
 
@@ -74,6 +102,7 @@ const CompactEditStudentScreen: React.FC = () => {
     if (!selectedStudent) return;
 
     const newErrors = {
+      ine: !isIneValid(updatedData.ine ?? selectedStudent.ine),
       nom: !isNameValid(updatedData.nom ?? selectedStudent.nom),
       prenom: !isNameValid(updatedData.prenom ?? selectedStudent.prenom),
       age: !isAgeValid((updatedData.age ?? selectedStudent.age)?.toString() ?? ''),
@@ -84,6 +113,7 @@ const CompactEditStudentScreen: React.FC = () => {
 
     if (Object.values(newErrors).some(Boolean)) {
       const messages: string[] = [];
+      if (newErrors.ine) messages.push('INE invalide (5-20 caractères alphanumériques).');
       if (newErrors.nom) messages.push('Nom invalide (lettres uniquement, 2-50 caractères).');
       if (newErrors.prenom) messages.push('Prénom invalide (lettres uniquement, 2-50 caractères).');
       if (newErrors.age) messages.push('Âge invalide (12 à 99).');
@@ -94,33 +124,36 @@ const CompactEditStudentScreen: React.FC = () => {
 
     setLoading(true);
     try {
+      // Gestion photo si elle a changé
+      let photo = updatedData.photo ?? selectedStudent.photo;
+      if (updatedData.photo && updatedData.photo !== selectedStudent.photo) {
+        const photoRes = await updateEtudiantPhoto(selectedStudent.id!, updatedData.photo);
+        photo = photoRes.photo;
+      }
+
       const payload: Etudiant = {
         id: selectedStudent.id,
-        ine: selectedStudent.ine,
+        ine: updatedData.ine ?? selectedStudent.ine,
         nom: (updatedData.nom ?? selectedStudent.nom)!.trim(),
         prenom: (updatedData.prenom ?? selectedStudent.prenom)!.trim(),
         age: parseInt((updatedData.age ?? selectedStudent.age)!.toString()),
         sexe: (updatedData.sexe ?? selectedStudent.sexe)!,
         filiere: (updatedData.filiere ?? selectedStudent.filiere)!.trim(),
         telephone: (updatedData.telephone ?? selectedStudent.telephone)?.trim(),
-        photo: updatedData.photo ?? selectedStudent.photo,
+        photo,
       };
+
       await updateEtudiant(payload);
       Alert.alert('Succès', 'Étudiant modifié avec succès');
       setDrawerVisible(false);
       setSelectedStudent(null);
       setUpdatedData({});
       fetchStudents();
-    } catch {
-      Alert.alert('Erreur', 'Impossible de modifier l’étudiant');
+    } catch (err: any) {
+      Alert.alert('Erreur', err.message || 'Impossible de modifier l’étudiant');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleConfirmINEChange = async () => {
-    setConfirmModal(false);
-    await saveChanges();
   };
 
   return (
@@ -128,6 +161,12 @@ const CompactEditStudentScreen: React.FC = () => {
       <View style={styles.container}>
         <Text style={styles.title}>Modifier un étudiant</Text>
 
+        {/* BOUTON + Ajouter un étudiant */}
+        <TouchableOpacity style={styles.addButton} onPress={ ()=>{navigation.navigate('AddStudent')}}>
+          <Text style={styles.addButtonText}>+ Ajouter un étudiant</Text>
+        </TouchableOpacity>
+
+        {/* RECHERCHE */}
         <TextInput
           style={styles.searchInput}
           placeholder="Rechercher par nom, prénom ou INE..."
@@ -135,23 +174,36 @@ const CompactEditStudentScreen: React.FC = () => {
           onChangeText={setSearch}
         />
 
-        <FlatList
-          data={filteredStudents}
-          keyExtractor={(item) => item.id?.toString() ?? item.ine}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => {
-                setSelectedStudent(item);
-                setUpdatedData({ ...item });
-                setDrawerVisible(true);
-              }}
-            >
-              <Text style={styles.name}>{item.nom} {item.prenom}</Text>
-              <Text style={styles.meta}>INE: {item.ine} • Filière: {item.filiere}</Text>
-            </TouchableOpacity>
-          )}
-        />
+        {/* LISTE ETUDIANTS */}
+        {filteredStudents.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <LottieView
+              source={require('../../assets/lottie/Empty.json')}
+              autoPlay
+              loop
+              style={{ width: 200, height: 200 }}
+            />
+            <Text style={{ fontSize: 16, color: '#555', marginTop: 10 }}>Aucun étudiant à modifier</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredStudents}
+            keyExtractor={(item) => item.id?.toString() ?? item.ine}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => {
+                  setSelectedStudent(item);
+                  setUpdatedData({ ...item });
+                  setDrawerVisible(true);
+                }}
+              >
+                <Text style={styles.name}>{item.nom} {item.prenom}</Text>
+                <Text style={styles.meta}>INE: {item.ine} • Filière: {item.filiere}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        )}
 
         {/* DRAWER MODAL */}
         <Modal visible={drawerVisible} animationType="slide" transparent>
@@ -160,11 +212,12 @@ const CompactEditStudentScreen: React.FC = () => {
               <Text style={styles.modalTitle}>Modifier étudiant</Text>
 
               {/* INE */}
-              <Text style={styles.label}>INE (non modifiable)</Text>
+              <Text style={styles.label}>INE</Text>
               <TextInput
-                style={[styles.input, styles.inputDisabled]}
-                value={selectedStudent?.ine}
-                editable={false}
+                style={[styles.input, errors.ine && styles.inputError]}
+                value={updatedData.ine ?? selectedStudent?.ine}
+                onChangeText={(v) => setUpdatedData(prev => ({ ...prev, ine: v }))}
+                editable={true}
               />
 
               {/* NOM */}
@@ -190,7 +243,6 @@ const CompactEditStudentScreen: React.FC = () => {
                 keyboardType="number-pad"
                 value={(updatedData.age ?? selectedStudent?.age)?.toString() ?? ''}
                 onChangeText={(v) => setUpdatedData(prev => ({ ...prev, age: v ? parseInt(v) : undefined }))}
-
               />
 
               {/* TELEPHONE */}
@@ -228,15 +280,9 @@ const CompactEditStudentScreen: React.FC = () => {
               />
 
               {/* PHOTO */}
-              <TouchableOpacity
-                style={styles.photoWrapper}
-                onPress={() => setPhotoModalVisible(true)}
-              >
+              <TouchableOpacity style={styles.photoWrapper} onPress={() => setPhotoModalVisible(true)}>
                 {updatedData.photo || selectedStudent?.photo ? (
-                  <Image
-                    source={{ uri: updatedData.photo ?? selectedStudent?.photo }}
-                    style={styles.photo}
-                  />
+                  <Image source={{ uri: updatedData.photo ?? selectedStudent?.photo }} style={styles.photo} />
                 ) : (
                   <View style={styles.photoPlaceholder}><Text>Aucune photo</Text></View>
                 )}
@@ -254,36 +300,14 @@ const CompactEditStudentScreen: React.FC = () => {
                 }}
               />
 
-              {/* BOUTONS */}
               <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave} disabled={loading}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Enregistrer</Text>}
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => { setDrawerVisible(false); setSelectedStudent(null); setUpdatedData({}); }}
-              >
+              <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={() => { setDrawerVisible(false); setSelectedStudent(null); setUpdatedData({}); }}>
                 <Text style={styles.buttonText}>Annuler</Text>
               </TouchableOpacity>
             </ScrollView>
-          </View>
-        </Modal>
-
-        {/* CONFIRMATION INE */}
-        <Modal visible={confirmModal} transparent animationType="fade">
-          <View style={styles.overlay}>
-            <View style={[styles.drawerContainer, { padding: 20 }]}>
-              <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 15 }}>Confirmer le changement d'INE</Text>
-              <Text style={{ marginBottom: 20 }}>Vous êtes sur le point de modifier l'INE. Êtes-vous sûr ?</Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <TouchableOpacity style={[styles.saveButton, { flex: 1, marginRight: 5 }]} onPress={handleConfirmINEChange}>
-                  <Text style={styles.buttonText}>Oui, confirmer</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.cancelButton, { flex: 1, marginLeft: 5 }]} onPress={() => setConfirmModal(false)}>
-                  <Text style={styles.buttonText}>Annuler</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
           </View>
         </Modal>
       </View>
@@ -296,6 +320,8 @@ export default CompactEditStudentScreen;
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 12, backgroundColor: '#f4f6fc' },
   title: { fontSize: 24, fontWeight: '700', color: '#1e90ff', marginBottom: 10 },
+  addButton: { backgroundColor: '#1e90ff', padding: 12, borderRadius: 12, alignItems: 'center', marginBottom: 10 },
+  addButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   searchInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 20, paddingHorizontal: 12, height: 40, backgroundColor: '#fff', marginBottom: 10 },
   card: { backgroundColor: '#fff', padding: 12, marginVertical: 6, borderRadius: 15 },
   name: { fontSize: 16, fontWeight: '600' },
@@ -304,7 +330,6 @@ const styles = StyleSheet.create({
   drawerContainer: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 15 },
   input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginVertical: 8, fontSize: 16, borderWidth: 1, borderColor: '#ccc' },
-  inputDisabled: { backgroundColor: '#e5e5e5' },
   inputError: { borderColor: 'red' },
   label: { fontSize: 12, color: '#555', marginBottom: 4 },
   sexeContainer: { flexDirection: 'row', marginVertical: 10 },
@@ -319,5 +344,4 @@ const styles = StyleSheet.create({
   photoWrapper: { alignSelf: 'center', marginVertical: 10 },
   photo: { width: 120, height: 120, borderRadius: 60, borderWidth: 3, borderColor: '#1e90ff' },
   photoPlaceholder: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#eee', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#1e90ff' },
-  overlay: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: 20 },
 });

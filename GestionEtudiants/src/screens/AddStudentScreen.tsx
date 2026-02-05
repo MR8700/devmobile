@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -19,9 +19,14 @@ import {
   updateEtudiantPhoto,
   getFilieres,
   Etudiant,
+  getEtudiants,
 } from '../api/api';
+import { styles } from '../components/forms/add/AddStudentStyle';
+import { isAgeValid, isFiliereValid, isIneValid, isNameValid, isPhoneValid } from '../components/forms/FieldValidation';
+import { useFocusEffect } from '@react-navigation/native';
 
 const AddStudentScreen: React.FC = () => {
+   const [students, setStudents] = useState<Etudiant[]>([]);
   const [ine, setIne] = useState('');
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
@@ -48,6 +53,27 @@ const AddStudentScreen: React.FC = () => {
   });
 
   /* ================= CHARGER FILIERES ================= */
+  // FETCH STUDENTS + STATS
+        const loadStudents = useCallback(async () => {
+          setLoading(true);
+          try {
+            const data = await getEtudiants();
+            setStudents(data.map(s => ({ ...s, id: s.id! })));
+    
+          } catch (err) {
+            console.error('Erreur dashboard :', err);
+            Alert.alert('Erreur', 'Impossible de charger les étudiants');
+          } finally {
+            setLoading(false);
+          }
+        }, []);
+      
+    
+      useFocusEffect(
+          useCallback(() => {
+            loadStudents();
+          }, [loadStudents])
+        );
   useEffect(() => {
     const fetchFilieres = async () => {
       try {
@@ -60,12 +86,6 @@ const AddStudentScreen: React.FC = () => {
     fetchFilieres();
   }, []);
 
-  /* ================= VALIDATIONS ================= */
-  const isIneValid = (v: string) => /^N\d{11}$/.test(v);
-  const isNameValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,50}$/.test(v.trim());
-  const isAgeValid = (v: string) => /^\d+$/.test(v) && parseInt(v) >= 12 && parseInt(v) <= 99;
-  const isPhoneValid = (v: string) => /^\d{8}$/.test(v);
-  const isFiliereValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ ]{2,50}$/.test(v.trim());
 
   /* ================= SUBMIT ================= */
   const handleSubmit = async () => {
@@ -268,69 +288,5 @@ const AddStudentScreen: React.FC = () => {
   );
 };
 
-/* ================= STYLES ================= */
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    flexGrow: 1,
-    backgroundColor: '#f7f9fc',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 20,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginVertical: 8,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  inputError: {
-    borderColor: 'red',
-  },
-  sexeContainer: {
-    flexDirection: 'row',
-    marginVertical: 10,
-  },
-  sexeButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#888',
-    marginHorizontal: 5,
-    alignItems: 'center',
-  },
-  sexeSelected: {
-    backgroundColor: '#1e90ff',
-    borderColor: '#1e90ff',
-  },
-  sexeText: {
-    fontWeight: '600',
-  },
-  pickerContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    marginVertical: 8,
-  },
-  button: {
-    marginTop: 20,
-    backgroundColor: '#1e90ff',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-});
 
 export default AddStudentScreen;

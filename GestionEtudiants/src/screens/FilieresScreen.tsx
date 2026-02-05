@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import { Etudiant, getEtudiants } from '../api/api';
 import StudentForm from '../components/forms/StudentForm';
 import { getFilieres } from '../api/api';
 import StudentDetailScreen from './StudentDetailScreen';
+import { isFiliereValid } from '../components/forms/FieldValidation';
+import { useFocusEffect } from '@react-navigation/native';
 
 const FiliereScreen: React.FC = () => {
   const [filieres, setFilieres] = useState<string[]>([]);
@@ -24,6 +26,7 @@ const FiliereScreen: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [newFiliere, setNewFiliere] = useState('');
   const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Etudiant | null>(null);
@@ -50,11 +53,30 @@ const FiliereScreen: React.FC = () => {
     }
   };
 
+  // FETCH STUDENTS + STATS
+    const loadStudents = useCallback(async () => {
+      setLoading(true);
+      try {
+        const data = await getEtudiants();
+        setStudents(data.map(s => ({ ...s, id: s.id! })));
+
+      } catch (err) {
+        console.error('Erreur dashboard :', err);
+        Alert.alert('Erreur', 'Impossible de charger les étudiants');
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+  
+
+  useFocusEffect(
+      useCallback(() => {
+        loadStudents();
+      }, [loadStudents])
+    );
   useEffect(() => { fetchFilieres(); }, []);
   useEffect(() => { fetchStudents(); }, [selectedFiliere]);
 
-  // Regex : lettres + accents + espaces, 2 à 50 caractères
-  const isFiliereValid = (f: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ ]{2,50}$/.test(f.trim());
 
   const handleAddFiliere = () => {
     const f = newFiliere.trim();

@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
+import { TouchableOpacity } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
+
 import DrawerNavigator from './DrawerNavigator';
 import EditStudentScreen from '../screens/EditStudentScreen';
 import AddStudentScreen from '../screens/AddStudentScreen';
-import { RootStackParamList } from '../types/types';
 import StudentDetailScreenWrapper from '../screens/StudentDetailScreenWrapper';
 import FilieresScreen from '../screens/FilieresScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -11,85 +14,79 @@ import SecurityScreen from '../screens/SecurityScreen';
 import AboutScreen from '../screens/AboutScreen';
 import SpecialEditStudentScreen from '../screens/SpecialEditStudentScreen';
 
+import { RootStackParamList } from '../types/types';
+import { ThemeContext } from '../context/ThemeContext';
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const SimpleStack = createNativeStackNavigator();
+
 export default function AppNavigator() {
+ 
+
+
   return (
-    <Stack.Navigator>
-      <Stack.Screen
-        name="Main"
-        component={DrawerNavigator}
-        options={{ headerShown: false }}
-      />
+    <>
+      
 
-      <Stack.Screen
-        name="StudentDetail"
-        component={StudentDetailScreenWrapper}
-        options={{
-          presentation: 'modal',
-          title: 'Détails étudiant',
+      <Stack.Navigator
+        screenOptions={{
+         headerTitleStyle: { fontWeight: '700' as '700', fontSize: 18 },
+         
         }}
-      />
-
-      <Stack.Screen
-        name="EditStudent"
-        component={EditStudentScreen}
-        options={{
-          presentation: 'modal',
-          title: 'Modifier étudiant',
-        }}
-      />
-
-      <SimpleStack.Screen
-        name="SpecialEditStudent"
-        component={SpecialEditStudentScreen}
-        options={{
-          presentation: 'modal',
-          title: 'Modifier étudiant',
-        }}
-      />
-
-      <Stack.Screen
-        name="AddStudent"
-        component={AddStudentScreen}
-        options={{
-          title: 'Ajouter un étudiant',
-        }}
-      />
+      >
+        <Stack.Screen
+          name="Main"
+          component={DrawerNavigator}
+          options={{ headerShown: false }}
+        />
 
         <Stack.Screen
-        name="Filieres"
-        component={FilieresScreen}
-        options={{
-          title: 'Les filières',
-        }}
-      />
+          name="StudentDetail"
+          component={StudentDetailScreenWrapper}
+          options={{ presentation: 'modal', title: 'Détails étudiant' }}
+        />
 
+        <Stack.Screen
+          name="EditStudent"
+          component={EditStudentScreen}
+          options={{ presentation: 'modal', title: 'Modifier étudiant' }}
+        />
 
-      <SimpleStack.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{
-          title: 'Mon profile',
-        }}
-      />
+        <Stack.Screen
+          name="SpecialEditStudent"
+          component={SpecialEditStudentScreen}
+          options={{ presentation: 'modal', title: 'Modifier étudiant' }}
+        />
 
-      <SimpleStack.Screen
-        name="Security"
-        component={SecurityScreen}
-        options={{
-          title: 'Sécurité',
-        }}
-      />
+        <Stack.Screen
+          name="AddStudent"
+          component={AddStudentScreen}
+          options={{ title: 'Ajouter un étudiant' }}
+        />
 
-       <SimpleStack.Screen
-        name="About"
-        component={AboutScreen}
-        options={{
-          title: 'A propos',
-        }}
-      />
+        <Stack.Screen
+          name="Filieres"
+          component={FilieresScreen}
+          options={{ title: 'Les filières' }}
+        />
 
-    </Stack.Navigator>
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ title: 'Mon profil' }}
+        />
+
+        <Stack.Screen
+          name="Security"
+          component={SecurityScreen}
+          options={{ title: 'Sécurité' }}
+        />
+
+        <Stack.Screen
+          name="About"
+          component={AboutScreen}
+          options={{ title: 'À propos' }}
+        />
+      </Stack.Navigator>
+    </>
   );
 }

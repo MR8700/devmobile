@@ -1,30 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TextInput,
   FlatList,
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { Etudiant, getEtudiants } from '../api/api';
+import { Etudiant, getEtudiants, deleteEtudiant } from '../api/api';
 import DashboardButton from '../components/dashboard/DashboardButton';
 import StudentDetailScreen from './StudentDetailScreen';
+import { styles } from '../components/dashboard/DashboadStyle';
+import { StatItem } from '../components/statistic/StatItem';
 
-const COLORS = {
-  primary: '#1e90ff',
-  background: '#f7f9fc',
-  card: '#ffffff',
-  textPrimary: '#111',
-  textSecondary: '#666',
-  textMuted: '#555',
-};
+
 
 const DashboardScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(true);
@@ -36,6 +31,14 @@ const DashboardScreen = ({ navigation }: any) => {
   const [selectedStudent, setSelectedStudent] = useState<Etudiant | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
 
+  const COLORS = {
+  primary: '#1e90ff',
+  background: '#f7f9fc',
+  card: '#ffffff',
+  textPrimary: '#111',
+  textSecondary: '#666',
+  textMuted: '#555',
+};
   // FETCH STUDENTS + STATS
   const loadStudents = useCallback(async () => {
     setLoading(true);
@@ -47,6 +50,7 @@ const DashboardScreen = ({ navigation }: any) => {
       setFilles(data.filter(s => s.sexe === 'F').length);
     } catch (err) {
       console.error('Erreur dashboard :', err);
+      Alert.alert('Erreur', 'Impossible de charger les étudiants');
     } finally {
       setLoading(false);
     }
@@ -63,21 +67,48 @@ const DashboardScreen = ({ navigation }: any) => {
     setSelectedStudent(student);
     setDetailVisible(true);
   };
+
+
   const closeDetail = () => {
     setSelectedStudent(null);
     setDetailVisible(false);
   };
+
   const handleEdit = (student: Etudiant) => {
     closeDetail();
     navigation.navigate('EditStudent', { student });
   };
 
-  // FILTRE RECHERCHE
+  const handleDelete = async (student: Etudiant) => {
+    Alert.alert(
+      'Suppression',
+      `Voulez-vous supprimer ${student.nom} ${student.prenom} ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteEtudiant(student.id!);
+              if (selectedStudent?.id === student.id) closeDetail();
+              await loadStudents();
+              Alert.alert('Succès', 'Étudiant supprimé');
+            } catch {
+              Alert.alert('Erreur', 'Impossible de supprimer cet étudiant');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // FILTRE RECHERCHE (nom, prénom, filière, INE)
   const filteredStudents = students.filter(
     s =>
-      s.nom.toLowerCase().includes(search.toLowerCase()) ||
-      s.prenom.toLowerCase().includes(search.toLowerCase()) ||
-      s.filiere.toLowerCase().includes(search.toLowerCase())
+      `${s.nom} ${s.prenom} ${s.filiere} ${s.ine ?? ''}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
   );
 
   if (loading) {
@@ -113,14 +144,14 @@ const DashboardScreen = ({ navigation }: any) => {
         <Ionicons name="search-outline" size={20} color="#888" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher par nom, prénom ou filière…"
+          placeholder="Rechercher par nom, prénom, filière ou INE…"
           value={search}
           onChangeText={setSearch}
         />
       </View>
 
       {/* LISTE HORIZONTALE */}
-      {filteredStudents.length > 0 && (
+      {filteredStudents.length > 0 ? (
         <FlatList
           data={filteredStudents}
           keyExtractor={item => item.id!.toString()}
@@ -128,7 +159,11 @@ const DashboardScreen = ({ navigation }: any) => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingVertical: 10 }}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.studentCard} onPress={() => openDetail(item)}>
+            <TouchableOpacity
+              style={styles.studentCard}
+              onPress={() => openDetail(item)}
+              activeOpacity={0.7}
+            >
               <View style={styles.photoWrapper}>
                 {item.photo ? (
                   <Image source={{ uri: item.photo }} style={styles.photo} />
@@ -143,6 +178,8 @@ const DashboardScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           )}
         />
+      ) : (
+        <Text style={styles.emptyText}>Aucun étudiant trouvé</Text>
       )}
 
       {/* ACTIONS RAPIDES */}
@@ -161,17 +198,13 @@ const DashboardScreen = ({ navigation }: any) => {
         <DashboardButton
           icon="school-outline"
           label="Filières"
-          
           onPress={() => navigation.navigate('Filieres')}
         />
-
         <DashboardButton
-          icon="school-outline"
+          icon="construct-outline"
           label="Modifications particulières"
-          
           onPress={() => navigation.navigate('SpecialEditStudent')}
         />
-        
       </View>
 
       {/* MODAL DETAIL */}
@@ -181,6 +214,7 @@ const DashboardScreen = ({ navigation }: any) => {
           student={selectedStudent}
           onClose={closeDetail}
           onEdit={() => handleEdit(selectedStudent)}
+          onDelete={() => handleDelete(selectedStudent)}
         />
       )}
     </ScrollView>
@@ -189,71 +223,4 @@ const DashboardScreen = ({ navigation }: any) => {
 
 export default DashboardScreen;
 
-/* =======================
-   STAT ITEM
-======================= */
-const StatItem = ({ icon, label, value, color }: { icon: any; label: string; value: number; color: string }) => (
-  <View style={styles.statItem}>
-    <Ionicons name={icon} size={26} color={color} />
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
 
-/* =======================
-   STYLES
-======================= */
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 20, paddingBottom: 30 },
-
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loaderText: { marginTop: 12, fontSize: 14, color: COLORS.textMuted },
-
-  header: { marginBottom: 28 },
-  title: { fontSize: 26, fontWeight: '700', color: COLORS.textPrimary },
-  subtitle: { fontSize: 15, color: COLORS.textSecondary, marginTop: 4 },
-
-  statsCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 18,
-    paddingVertical: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
-    elevation: 3,
-  },
-  statItem: { alignItems: 'center' },
-  statValue: { fontSize: 22, fontWeight: '700', marginTop: 6 },
-  statLabel: { fontSize: 13, color: COLORS.textMuted },
-
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 15,
-    elevation: 2,
-  },
-  searchInput: { marginLeft: 8, flex: 1, fontSize: 15 },
-
-  studentCard: {
-    width: 140,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 12,
-    marginRight: 12,
-    alignItems: 'center',
-    elevation: 2,
-  },
-  photoWrapper: { marginBottom: 8 },
-  photo: { width: 60, height: 60, borderRadius: 30 },
-  studentInfo: { alignItems: 'center' },
-  studentName: { fontWeight: '600', fontSize: 14, textAlign: 'center' },
-  studentFiliere: { fontSize: 12, color: COLORS.primary, marginTop: 2 },
-
-  sectionTitle: { fontSize: 18, fontWeight: '600', marginVertical: 15 },
-  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-});

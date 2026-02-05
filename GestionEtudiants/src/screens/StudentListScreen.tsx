@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import LottieView from 'lottie-react-native';
 import { Etudiant, getEtudiants, deleteEtudiant } from '../api/api';
 import StudentDetailScreen from './StudentDetailScreen';
 
+const BASE_URL = 'http://10.0.2.2:3000';
+
 const StudentListScreen = ({ navigation }: any) => {
   const [students, setStudents] = useState<Etudiant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,27 +26,26 @@ const StudentListScreen = ({ navigation }: any) => {
   const [detailVisible, setDetailVisible] = useState(false);
 
   // FETCH STUDENTS
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getEtudiants();
-      setStudents(data.map(s => ({
-        ...s,
-        id: s.id!, // id auto-incrémenté côté backend
-      })));
+      setStudents(
+        data.map(s => ({ ...s, id: s.id! }))
+      );
     } catch (err) {
       console.error(err);
       Alert.alert('Erreur', 'Impossible de charger les étudiants');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchStudents();
-    const unsubscribe = navigation.addListener('focus', () => fetchStudents());
+    const unsubscribe = navigation.addListener('focus', fetchStudents);
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, fetchStudents]);
 
   // DELETE STUDENT
   const handleDelete = (student: Etudiant) => {
@@ -59,7 +60,13 @@ const StudentListScreen = ({ navigation }: any) => {
           onPress: async () => {
             try {
               await deleteEtudiant(student.id!);
+              // Fermer le détail si c’est le même étudiant
+              if (selectedStudent?.id === student.id) {
+                setDetailVisible(false);
+                setSelectedStudent(null);
+              }
               fetchStudents();
+              Alert.alert('Succès', 'Étudiant supprimé');
             } catch {
               Alert.alert('Erreur', 'Impossible de supprimer cet étudiant');
             }
@@ -85,41 +92,44 @@ const StudentListScreen = ({ navigation }: any) => {
     navigation.navigate('EditStudent', { student });
   };
 
-  // SEARCH FILTER
+  // SEARCH FILTER (nom, prénom, filière, INE)
   const filtered = students.filter(s =>
-    `${s.nom} ${s.prenom} ${s.filiere}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
+    `${s.nom} ${s.prenom} ${s.filiere} ${s.ine}`.toLowerCase().includes(search.toLowerCase())
   );
 
   // RENDER ITEM
-  const renderItem = ({ item }: { item: Etudiant }) => (
-    <TouchableOpacity style={styles.card} onPress={() => openDetail(item)}>
-      <Image
-        source={
-          item.photo
-            ? { uri: item.photo }
-            : require('../../assets/images/placeholder.png')
-        }
-        style={styles.photo}
-      />
-      <View style={styles.info}>
-        <Text style={styles.name}>{item.nom} {item.prenom}</Text>
-        <Text style={styles.filiere}>{item.filiere}</Text>
-        <Text style={styles.meta}>
-          {item.sexe === 'M' ? 'Garçon' : 'Fille'}{item.age ? ` • ${item.age} ans` : ''}
-          {item.telephone ? ` • ${item.telephone}` : ''}
-        </Text>
-      </View>
-      <View style={styles.actions}>
-        <TouchableOpacity style={[styles.actionBtn, styles.editBtn]} onPress={() => handleEdit(item)}>
-          <Ionicons name="create-outline" size={20} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => handleDelete(item)}>
-          <Ionicons name="trash-outline" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+  const renderItem = useCallback(
+    ({ item }: { item: Etudiant }) => (
+      <TouchableOpacity style={styles.card} onPress={() => openDetail(item)}>
+        <Image
+          source={
+            item.photo
+              ? { uri: item.photo }
+              : require('../../assets/images/placeholder.png')
+          }
+          style={styles.photo}
+        />
+        <View style={styles.info}>
+          <Text style={styles.name}>{item.nom} {item.prenom}</Text>
+          <Text style={styles.filiere}>{item.filiere}</Text>
+          <Text style={styles.meta}>
+            {item.sexe === 'M' ? 'Garçon' : 'Fille'}
+            {item.age ? ` • ${item.age} ans` : ''}
+            {item.telephone ? ` • ${item.telephone}` : ''}
+            {item.ine ? ` • ${item.ine}` : ''}
+          </Text>
+        </View>
+        <View style={styles.actions}>
+          <TouchableOpacity style={[styles.actionBtn, styles.editBtn]} onPress={() => handleEdit(item)}>
+            <Ionicons name="create-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionBtn, styles.deleteBtn]} onPress={() => handleDelete(item)}>
+            <Ionicons name="trash-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    ),
+    [selectedStudent]
   );
 
   return (
@@ -128,7 +138,7 @@ const StudentListScreen = ({ navigation }: any) => {
       <View style={styles.header}>
         <Text style={styles.title}>Liste des étudiants</Text>
         <TextInput
-          placeholder="Rechercher par nom, prénom ou filière..."
+          placeholder="Rechercher par nom, prénom, filière ou INE..."
           style={styles.searchInput}
           value={search}
           onChangeText={setSearch}
@@ -136,7 +146,10 @@ const StudentListScreen = ({ navigation }: any) => {
       </View>
 
       {/* ADD BUTTON */}
-      <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddStudent')}>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => navigation.navigate('AddStudent')}
+      >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
 
@@ -158,7 +171,7 @@ const StudentListScreen = ({ navigation }: any) => {
           data={filtered}
           keyExtractor={item => item.id!.toString()}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 40, paddingTop: 10 }}
+          contentContainerStyle={{ paddingBottom: 80, paddingTop: 10 }}
         />
       )}
 

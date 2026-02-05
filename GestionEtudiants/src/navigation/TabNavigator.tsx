@@ -9,8 +9,6 @@ import StatsScreen from '../screens/StatsScreen';
 
 const Tab = createBottomTabNavigator();
 
-
-
 export default function TabNavigator() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }}>

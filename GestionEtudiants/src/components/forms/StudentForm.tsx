@@ -11,6 +11,7 @@ import {
 
 import ImagePickerComponent from '../photo/ImagePickerComponent';
 import { addEtudiant, Etudiant } from '../../api/api';
+import { isAgeValid, isFiliereValid, isIneValid, isNameValid, isPhoneValid } from './FieldValidation';
 
 interface Props {
   filiere?: string;
@@ -29,12 +30,6 @@ const StudentForm: React.FC<Props> = ({ filiere, onSuccess }) => {
 
   const [localFiliere, setLocalFiliere] = useState(filiere ?? '');
 
-  /* ================= VALIDATIONS ================= */
-  const isIneValid = (v: string) => /^N\d{11}$/.test(v);
-  const isNameValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,50}$/.test(v.trim());
-  const isAgeValid = (v: string) => /^\d+$/.test(v) && parseInt(v) >= 12 && parseInt(v) <= 99;
-  const isPhoneValid = (v: string) => /^\d{8,15}$/.test(v);
-  const isFiliereValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ ]{2,50}$/.test(v.trim());
 
   /* ================= SUBMIT ================= */
   const handleSubmit = async () => {

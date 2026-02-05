@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -8,11 +8,13 @@ import {
   TouchableOpacity,
   ScrollView,
   TouchableWithoutFeedback,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import EditPhotoModal from '../components/photo/EditPhotoModal';
 import PhotoFullModal from '../components/photo/PhotoFullModal';
-import { Etudiant } from '../api/api';
+import { Etudiant, getEtudiants } from '../api/api';
+import { useFocusEffect } from '@react-navigation/native';
 
 const BASE_URL = 'http://10.0.2.2:3000';
 
@@ -34,6 +36,17 @@ const StudentDetailScreen: React.FC<Props> = ({
   const [photo, setPhoto] = useState<string | undefined>();
   const [photoVisible, setPhotoVisible] = useState(false);
   const [editPhotoVisible, setEditPhotoVisible] = useState(false);
+
+    
+    useEffect(() => {
+      if (student.photo) {
+        setPhoto(
+          student.photo.startsWith('http')
+            ? student.photo
+            : `http://10.0.2.2:3000${student.photo}`
+        );
+      }
+    }, [student.photo]);
 
   // FORMAT PHOTO URL
   useEffect(() => {

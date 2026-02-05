@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,10 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/types';
 import EditPhotoModal from '../components/photo/EditPhotoModal';
-import { deleteEtudiant, updateEtudiant, Etudiant } from '../api/api';
+import { deleteEtudiant, updateEtudiant, Etudiant, getEtudiants } from '../api/api';
+import { isAgeValid, isFiliereValid, isNameValid, isPhoneValid } from '../components/forms/FieldValidation';
+import { styles } from '../components/forms/edit/EditStyle';
+import { useFocusEffect } from '@react-navigation/native';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditStudent'>;
 
@@ -23,6 +26,7 @@ const EditStudentScreen: React.FC<Props> = ({ route, navigation }) => {
   const { student } = route.params;
 
   /* ================= STATES ================= */
+   const [students, setStudents] = useState<Etudiant[]>([]);
   const [nom, setNom] = useState(student.nom);
   const [prenom, setPrenom] = useState(student.prenom);
   const [age, setAge] = useState(student.age?.toString() ?? '');
@@ -43,7 +47,27 @@ const EditStudentScreen: React.FC<Props> = ({ route, navigation }) => {
     filiere: false,
   });
 
-  /* ================= EFFET POUR CHARGER LA PHOTO ================= */
+  // FETCH STUDENTS + STATS
+      const loadStudents = useCallback(async () => {
+        setLoading(true);
+        try {
+          const data = await getEtudiants();
+          setStudents(data.map(s => ({ ...s, id: s.id! })));
+  
+        } catch (err) {
+          console.error('Erreur dashboard :', err);
+          Alert.alert('Erreur', 'Impossible de charger les étudiants');
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+    
+  
+    useFocusEffect(
+        useCallback(() => {
+          loadStudents();
+        }, [loadStudents])
+      );
   useEffect(() => {
     if (student.photo) {
       setPhoto(
@@ -53,12 +77,6 @@ const EditStudentScreen: React.FC<Props> = ({ route, navigation }) => {
       );
     }
   }, [student.photo]);
-
-  /* ================= VALIDATION ================= */
-  const isNameValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ]{2,50}$/.test(v.trim());
-  const isAgeValid = (v: string) => /^\d+$/.test(v) && parseInt(v) >= 12 && parseInt(v) <= 99;
-  const isPhoneValid = (v: string) => /^\d{8,15}$/.test(v);
-  const isFiliereValid = (v: string) => /^[A-Za-zÀ-ÖØ-öø-ÿ ]{2,50}$/.test(v.trim());
 
   /* ================= UPDATE ================= */
   const handleSubmit = async () => {
@@ -225,10 +243,9 @@ const EditStudentScreen: React.FC<Props> = ({ route, navigation }) => {
         <EditPhotoModal
           visible={photoModalVisible}
           studentId={student.id!}
-          currentPhoto={photo ?? undefined} // chemin relatif ou URI
+          currentPhoto={photo ?? undefined}
           onClose={() => setPhotoModalVisible(false)}
           onConfirm={(newPhotoUri: string) => {
-            // ⚡ stocker uniquement le chemin relatif pour envoyer au backend
             const relativeUri = newPhotoUri.replace('http://10.0.2.2:3000', '');
             setPhoto(relativeUri);
             setPhotoModalVisible(false);
@@ -251,100 +268,4 @@ const EditStudentScreen: React.FC<Props> = ({ route, navigation }) => {
 
 export default EditStudentScreen;
 
-/* ================= STYLES ================= */
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    flexGrow: 1,
-    backgroundColor: '#f7f9fc',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 20,
-    color: '#111',
-  },
-  label: {
-    fontSize: 12,
-    color: '#555',
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginVertical: 8,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  inputDisabled: {
-    backgroundColor: '#e5e5e5',
-  },
-  inputError: {
-    borderColor: 'red',
-  },
-  sexeContainer: {
-    flexDirection: 'row',
-    marginVertical: 10,
-  },
-  sexeButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#888',
-    marginHorizontal: 5,
-    alignItems: 'center',
-  },
-  sexeSelected: {
-    backgroundColor: '#1e90ff',
-    borderColor: '#1e90ff',
-  },
-  sexeText: {
-    color: '#111',
-    fontWeight: '600',
-  },
-  sexeTextSelected: {
-    color: '#fff',
-  },
-  button: {
-    marginTop: 20,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  saveButton: {
-    backgroundColor: '#1e90ff',
-  },
-  deleteButton: {
-    backgroundColor: '#ff4d4d',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  photoWrapper: {
-    alignSelf: 'center',
-    marginVertical: 10,
-  },
-  photo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: '#1e90ff',
-  },
-  photoPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#eee',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#1e90ff',
-  },
-});
+

@@ -18,7 +18,9 @@ interface EditPhotoModalProps {
   studentId: number;
   currentPhoto?: string;
   onClose: () => void;
-  onConfirm: (newPhotoUri: string) => void;
+
+  // ⚡ On renvoie toujours URI RELATIVE vers parent
+  onConfirm: (newPhotoRelativeUri: string) => void;
 }
 
 const SERVER_BASE_URL = 'http://10.0.2.2:3000';
@@ -30,13 +32,15 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
   onClose,
   onConfirm,
 }) => {
-  const [tempPhoto, setTempPhoto] = useState<string | undefined>(undefined);
+  const [tempPhoto, setTempPhoto] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
 
+  /* ===============================
+     INITIALISATION PHOTO
+  =============================== */
   useEffect(() => {
     if (visible) {
       if (currentPhoto) {
-        // ⚡ Vérifie si c’est déjà une URL complète
         setTempPhoto(
           currentPhoto.startsWith('http')
             ? currentPhoto
@@ -45,10 +49,14 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
       } else {
         setTempPhoto(undefined);
       }
+
       setLoading(false);
     }
   }, [visible, currentPhoto]);
 
+  /* ===============================
+     SELECTION IMAGE
+  =============================== */
   const pickImage = async (fromCamera: boolean) => {
     if (loading) return;
 
@@ -82,6 +90,9 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
     }
   };
 
+  /* ===============================
+     CONFIRMATION PHOTO
+  =============================== */
   const handleConfirm = async () => {
     if (!tempPhoto) {
       Alert.alert('Erreur', 'Veuillez sélectionner une photo.');
@@ -91,18 +102,23 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
     try {
       setLoading(true);
 
+      // ⚡ Upload vers backend
       const updatedStudent = await updateEtudiantPhoto(studentId, tempPhoto);
 
-      const finalPhoto = updatedStudent?.photo
-        ? `${SERVER_BASE_URL}${updatedStudent.photo}`
-        : tempPhoto;
+      if (!updatedStudent?.photo) {
+        throw new Error('Photo non retournée par le serveur');
+      }
 
-      onConfirm(finalPhoto);
+      // ⚡ On renvoie uniquement URI RELATIVE au parent
+      onConfirm(updatedStudent.photo);
+
       onClose();
     } catch (error: any) {
       Alert.alert(
         'Erreur',
-        error?.response?.data?.error || error?.message || 'Impossible de mettre à jour la photo.'
+        error?.response?.data?.error ||
+          error?.message ||
+          'Impossible de mettre à jour la photo.'
       );
     } finally {
       setLoading(false);
@@ -124,6 +140,7 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
             </View>
           )}
 
+          {/* ACTIONS */}
           <View style={styles.actions}>
             <TouchableOpacity
               style={styles.actionButton}
@@ -144,6 +161,7 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
             </TouchableOpacity>
           </View>
 
+          {/* FOOTER */}
           <View style={styles.footer}>
             <TouchableOpacity
               style={[styles.footerButton, styles.cancel]}
@@ -158,7 +176,11 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
               onPress={handleConfirm}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.footerText}>Confirmer</Text>}
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.footerText}>Confirmer</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -169,9 +191,23 @@ const EditPhotoModal: React.FC<EditPhotoModalProps> = ({
 
 export default EditPhotoModal;
 
+/* ===============================
+   STYLES
+=============================== */
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
-  container: { width: '90%', backgroundColor: '#fff', borderRadius: 16, padding: 20, alignItems: 'center' },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  container: {
+    width: '90%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
   title: { fontSize: 18, fontWeight: '600', marginBottom: 20 },
   photo: { width: 180, height: 150, borderRadius: 12, marginBottom: 20 },
   photoPlaceholder: {
@@ -184,9 +220,25 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   photoText: { marginTop: 6, color: '#777' },
-  actions: { flexDirection: 'row', width: '100%', marginBottom: 20, justifyContent: 'space-between' },
-  actionButton: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 12, marginHorizontal: 5, backgroundColor: '#1e90ff', borderRadius: 10 },
+
+  actions: {
+    flexDirection: 'row',
+    width: '100%',
+    marginBottom: 20,
+    justifyContent: 'space-between',
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginHorizontal: 5,
+    backgroundColor: '#1e90ff',
+    borderRadius: 10,
+  },
   actionText: { color: '#fff', fontWeight: '600', marginLeft: 6 },
+
   footer: { flexDirection: 'row', width: '100%', justifyContent: 'space-between' },
   footerButton: { flex: 1, paddingVertical: 12, borderRadius: 10, marginHorizontal: 5 },
   cancel: { backgroundColor: '#777' },

@@ -108,7 +108,7 @@ const AddStudentScreen: React.FC = () => {
       if (newErrors.nom) messages.push('Nom invalide (lettres uniquement, 2-50 caractères).');
       if (newErrors.prenom) messages.push('Prénom invalide (lettres uniquement, 2-50 caractères).');
       if (newErrors.age) messages.push('Âge invalide (12 à 99).');
-      if (newErrors.telephone) messages.push('Téléphone invalide (8 chiffres).');
+      if (newErrors.telephone) messages.push('Téléphone invalide (8 à 15 chiffres).');
       if (newErrors.filiere) messages.push('Filière invalide (lettres uniquement, 2-50 caractères).');
 
       return Alert.alert('Erreur de saisie', messages.join('\n'));

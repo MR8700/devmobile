@@ -48,19 +48,6 @@ const StudentDetailScreen: React.FC<Props> = ({
       }
     }, [student.photo]);
 
-  // FORMAT PHOTO URL
-  useEffect(() => {
-    if (!student.photo) {
-      setPhoto(undefined);
-      return;
-    }
-
-    setPhoto(
-      student.photo.startsWith('http')
-        ? student.photo
-        : `${BASE_URL}${student.photo}`
-    );
-  }, [student]);
 
   return (
     <>

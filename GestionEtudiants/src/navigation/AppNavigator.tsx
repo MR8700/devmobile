@@ -1,8 +1,5 @@
 import React, { useContext } from 'react';
-import { TouchableOpacity } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar';
 
 import DrawerNavigator from './DrawerNavigator';
 import EditStudentScreen from '../screens/EditStudentScreen';
@@ -15,7 +12,6 @@ import AboutScreen from '../screens/AboutScreen';
 import SpecialEditStudentScreen from '../screens/SpecialEditStudentScreen';
 
 import { RootStackParamList } from '../types/types';
-import { ThemeContext } from '../context/ThemeContext';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
